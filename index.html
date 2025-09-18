@@ -1754,24 +1754,14 @@
         }
         
         // Initialiser Google Identity Services
-        function initGoogleAuth() {
+        function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID, // Utilisez seulement votre Client ID (sans le secret!)
+                client_id: CLIENT_ID,
                 scope: SCOPES,
-                callback: (tokenResponse) => {
-                    if (tokenResponse && tokenResponse.access_token) {
-                        // Authentification réussie
-                        console.log('Authentification réussie');
-                        // Ici vous pouvez appeler vos fonctions de synchronisation
-                    }
-                }
+                callback: '', // défini plus tard
             });
-        }
-
-        // Fonction pour lancer l'authentification
-        function handleAuthClick() {
-            initGoogleAuth();
-            tokenClient.requestAccessToken();
+            gisInited = true;
+            maybeEnableButtons();
         }
         
         function maybeEnableButtons() {
