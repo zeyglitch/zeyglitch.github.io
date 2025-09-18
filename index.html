@@ -1768,21 +1768,17 @@
         
         // Initialiser gapi
         function gapiLoaded() {
-            gapi.load('client', GapiClient);
+            gapi.load('client', initializeGapiClient);
         }
         
         // Initialiser le client gapi
         async function initializeGapiClient() {
-            try {
-                await gapi.client.init({
-                    discoveryDocs: [DISCOVERY_DOC],
-                });
-                gapiInited = true;
-                maybeEnableButtons();
-                console.log("Google API client initialisé avec succès");
-            } catch (error) {
-                console.error("Erreur d'initialisation de Google API client:", error);
-            }
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: [DISCOVERY_DOC],
+            });
+            gapiInited = true;
+            maybeEnableButtons();
         }
         
         // Initialiser Google Identity Services
@@ -1853,27 +1849,16 @@
         
         // Trouver le fichier sur Google Drive
         async function findFile() {
-            try {
-                // Vérifier que l'API Drive est disponible
-                if (!gapi.client.drive) {
-                    // Charger l'API Drive si ce n'est pas fait
-                    await gapi.client.load('drive', 'v3');
-                }
-                
-                const response = await gapi.client.drive.files.list({
-                    q: "name='seriesTrackerData.json' and trashed=false",
-                    fields: 'files(id, name)',
-                    spaces: 'drive',
-                });
-                
-                if (response.result.files.length > 0) {
-                    return response.result.files[0].id;
-                }
-                return null;
-            } catch (error) {
-                console.error("Erreur lors de la recherche du fichier:", error);
-                throw new Error("Impossible de rechercher le fichier: " + error.message);
+            const response = await gapi.client.drive.files.list({
+                q: "name='seriesTrackerData.json' and trashed=false",
+                fields: 'files(id, name)',
+                spaces: 'drive',
+            });
+            
+            if (response.result.files.length > 0) {
+                return response.result.files[0].id;
             }
+            return null;
         }
         
         // Créer un nouveau fichier
