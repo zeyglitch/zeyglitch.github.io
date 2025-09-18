@@ -1849,16 +1849,27 @@
         
         // Trouver le fichier sur Google Drive
         async function findFile() {
-            const response = await gapi.client.drive.files.list({
-                q: "name='seriesTrackerData.json' and trashed=false",
-                fields: 'files(id, name)',
-                spaces: 'drive',
-            });
-            
-            if (response.result.files.length > 0) {
-                return response.result.files[0].id;
+            try {
+                // Vérifier que l'API Drive est disponible
+                if (!gapi.client.drive) {
+                    // Charger l'API Drive si ce n'est pas fait
+                    await gapi.client.load('drive', 'v3');
+                }
+                
+                const response = await gapi.client.drive.files.list({
+                    q: "name='seriesTrackerData.json' and trashed=false",
+                    fields: 'files(id, name)',
+                    spaces: 'drive',
+                });
+                
+                if (response.result.files.length > 0) {
+                    return response.result.files[0].id;
+                }
+                return null;
+            } catch (error) {
+                console.error("Erreur lors de la recherche du fichier:", error);
+                throw new Error("Impossible de rechercher le fichier: " + error.message);
             }
-            return null;
         }
         
         // Créer un nouveau fichier
