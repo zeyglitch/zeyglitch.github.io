@@ -1768,17 +1768,21 @@
         
         // Initialiser gapi
         function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
+            gapi.load('client', GapiClient);
         }
         
         // Initialiser le client gapi
         async function initializeGapiClient() {
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC],
-            });
-            gapiInited = true;
-            maybeEnableButtons();
+            try {
+                await gapi.client.init({
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+                gapiInited = true;
+                maybeEnableButtons();
+                console.log("Google API client initialisé avec succès");
+            } catch (error) {
+                console.error("Erreur d'initialisation de Google API client:", error);
+            }
         }
         
         // Initialiser Google Identity Services
