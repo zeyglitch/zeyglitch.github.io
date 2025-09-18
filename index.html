@@ -862,35 +862,6 @@
     </div>
 
     <script>
-        // Données de l'application
-        let appData = {
-            manwha: {
-                romance: [
-                    { id: 1, name: "True Beauty", counter1Type: "chapters", counter1Value: 50, counter2Type: null, counter2Value: null, status: "ongoing", lastUpdated: Date.now() }
-                ],
-                action: [
-                    { id: 2, name: "Solo Leveling", counter1Type: "chapters", counter1Value: 120, counter2Type: null, counter2Value: null, status: "finished", lastUpdated: Date.now() - 100000 }
-                ]
-            },
-            manga: {
-                romance: [
-                    { id: 3, name: "Fruits Basket", counter1Type: "chapters", counter1Value: 136, counter2Type: null, counter2Value: null, status: "finished", lastUpdated: Date.now() - 200000 }
-                ],
-                murim: [
-                    { id: 4, name: "Gosu", counter1Type: "chapters", counter1Value: 80, counter2Type: null, counter2Value: null, status: "ongoing", lastUpdated: Date.now() - 300000 }
-                ]
-            },
-            anime: {
-                action: [
-                    { id: 5, name: "Attack on Titan", counter1Type: "seasons", counter1Value: 4, counter2Type: "episodes", counter2Value: 25, status: "finished", lastUpdated: Date.now() - 400000 }
-                ]
-            },
-            novel: {
-                fantasy: [
-                    { id: 6, name: "The Beginning After the End", counter1Type: "volumes", counter1Value: 10, counter2Type: "chapters", counter2Value: 350, status: "ongoing", lastUpdated: Date.now() - 500000 }
-                ]
-            }
-        };
 
         // Variables pour gérer la suppression et l'édition
         let seriesToDelete = null;
@@ -1717,7 +1688,17 @@
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
 
-    <div class="sync-section">
+    <div class="auth-container" id="auth-container">
+            <h3>Synchronisation Google Drive</h3>
+            <p>Connectez-vous à votre compte Google pour synchroniser vos données</p>
+            <button class="auth-btn" id="google-auth-btn">
+                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" width="20" height="20">
+                Se connecter avec Google
+            </button>
+            <div class="auth-status" id="auth-status"></div>
+        </div>
+        
+        <div class="sync-section">
             <button class="sync-btn sync-google" id="sync-google">
                 <i class="fab fa-google-drive"></i> Synchroniser avec Google Drive
             </button>
@@ -1729,8 +1710,9 @@
     </div>
 
     <script>
-        // Remplacez par votre propre Client ID
-        const CLIENT_ID = '701190629301-bho47q5g0tq2bm4mg9pho7886lrusicb.apps.googleusercontent.com';
+        // Configuration Google OAuth
+        const CLIENT_ID = '701190629301-bho47q5g0tq2bn4me9pho78861rusich.apps.googleusercontent.com';
+        const API_KEY = ''; // Ne pas utiliser de clé API dans le frontend pour Drive API
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
         const SCOPES = 'https://www.googleapis.com/auth/drive.file';
         
@@ -1738,22 +1720,30 @@
         let gapiInited = false;
         let gisInited = false;
         
+        // Données de l'application
+        let appData = {
+            manwha: {}, manga: {}, anime: {}, novel: {}
+        };
+        
         // Initialiser gapi
         function gapiLoaded() {
             gapi.load('client', initializeGapiClient);
         }
         
-        // Initialiser le client gapi
         async function initializeGapiClient() {
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC],
-            });
-            gapiInited = true;
-            maybeEnableButtons();
+            try {
+                await gapi.client.init({
+                    // Pas besoin d'API_KEY pour Drive API avec OAuth
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+                gapiInited = true;
+                maybeEnableButtons();
+                console.log("Google API client initialisé avec succès");
+            } catch (error) {
+                console.error("Erreur d'initialisation de Google API client:", error);
+            }
         }
         
-        // Initialiser Google Identity Services
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
@@ -1766,28 +1756,51 @@
         
         function maybeEnableButtons() {
             if (gapiInited && gisInited) {
+                document.getElementById('google-auth-btn').style.visibility = 'visible';
                 document.getElementById('sync-google').style.visibility = 'visible';
             }
         }
         
+        function checkGoogleApiReady() {
+            if (!gapiInited) {
+                throw new Error("Google API client n'est pas initialisé");
+            }
+            if (!gisInited) {
+                throw new Error("Google Identity Services n'est pas initialisé");
+            }
+            if (!gapi.client) {
+                throw new Error("Google API n'est pas chargée");
+            }
+            return true;
+        }
+        
         // Gérer l'authentification
         async function handleAuthClick() {
-            const statusElement = document.getElementById('sync-status');
+            const statusElement = document.getElementById('auth-status');
             statusElement.textContent = 'Authentification en cours...';
             
-            tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) {
-                    statusElement.textContent = 'Erreur d\'authentification: ' + resp.error;
-                    throw resp;
+            try {
+                checkGoogleApiReady();
+                
+                tokenClient.callback = async (resp) => {
+                    if (resp.error !== undefined) {
+                        statusElement.textContent = 'Erreur d\'authentification: ' + resp.error;
+                        throw resp;
+                    }
+                    statusElement.textContent = 'Authentification réussie!';
+                    // Cacher le conteneur d'authentification après réussite
+                    document.getElementById('auth-container').style.display = 'none';
+                    await syncToGoogleDrive();
+                };
+                
+                if (gapi.client.getToken() === null) {
+                    tokenClient.requestAccessToken({prompt: 'consent'});
+                } else {
+                    tokenClient.requestAccessToken({prompt: ''});
                 }
-                statusElement.textContent = 'Authentification réussie!';
-                await syncToGoogleDrive();
-            };
-            
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                tokenClient.requestAccessToken({prompt: ''});
+            } catch (error) {
+                console.error('Erreur d\'authentification:', error);
+                statusElement.textContent = 'Erreur d\'authentification: ' + error.message;
             }
         }
         
@@ -1797,6 +1810,14 @@
             statusElement.textContent = 'Synchronisation avec Google Drive...';
             
             try {
+                checkGoogleApiReady();
+                
+                // Vérifier que l'utilisateur est authentifié
+                if (!gapi.client.getToken()) {
+                    await handleAuthClick();
+                    return;
+                }
+                
                 // Vérifier si le fichier existe déjà
                 let fileId = await findFile();
                 const data = JSON.stringify(appData);
@@ -1819,18 +1840,29 @@
             }
         }
         
-        // Trouver le fichier sur Google Drive
+        // CORRECTION: Trouver le fichier sur Google Drive
         async function findFile() {
-            const response = await gapi.client.drive.files.list({
-                q: "name='seriesTrackerData.json' and trashed=false",
-                fields: 'files(id, name)',
-                spaces: 'drive',
-            });
-            
-            if (response.result.files.length > 0) {
-                return response.result.files[0].id;
+            try {
+                // Vérifier que l'API Drive est disponible
+                if (!gapi.client.drive) {
+                    // Charger l'API Drive si ce n'est pas fait
+                    await gapi.client.load('drive', 'v3');
+                }
+                
+                const response = await gapi.client.drive.files.list({
+                    q: "name='seriesTrackerData.json' and trashed=false",
+                    fields: 'files(id, name)',
+                    spaces: 'drive',
+                });
+                
+                if (response.result.files.length > 0) {
+                    return response.result.files[0].id;
+                }
+                return null;
+            } catch (error) {
+                console.error("Erreur lors de la recherche du fichier:", error);
+                throw new Error("Impossible de rechercher le fichier: " + error.message);
             }
-            return null;
         }
         
         // Créer un nouveau fichier
@@ -1905,18 +1937,42 @@
             statusElement.textContent = 'Données chargées depuis le stockage local!';
         }
         
+        // Fonctions de gestion des données locales
+        function loadData() {
+            const savedData = localStorage.getItem('seriesTrackerData');
+            if (savedData) {
+                appData = JSON.parse(savedData);
+            }
+        }
+        
+        function saveData() {
+            localStorage.setItem('seriesTrackerData', JSON.stringify(appData));
+        }
+        
+        function renderCategories() {
+            // Votre code existant pour afficher les catégories
+            console.log("Rendu des catégories");
+        }
+        
         // Événements
-        document.getElementById('sync-google').addEventListener('click', handleAuthClick);
+        document.getElementById('google-auth-btn').addEventListener('click', handleAuthClick);
+        document.getElementById('sync-google').addEventListener('click', syncToGoogleDrive);
         document.getElementById('sync-local').addEventListener('click', loadFromLocalStorage);
         
         // Initialiser les API Google
         window.gapiLoaded = gapiLoaded;
         window.gisLoaded = gisLoaded;
+        
+        // Charger les données au démarrage
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            renderCategories();
+        });
     </script>
     
     <!-- Charger les API Google -->
-    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
 
 </body>
 </html>
