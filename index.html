@@ -468,6 +468,45 @@
             color: #777;
         }
 
+        .backup-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .backup-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .backup-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .backup-btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .backup-status {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
         /* Styles spécifiques pour mobile */
         @media (max-width: 768px) {
             body {
@@ -543,6 +582,10 @@
             .counter-fields {
                 grid-template-columns: 1fr;
             }
+
+            .backup-buttons {
+                flex-direction: column;
+            }
         }
 
         @media (max-width: 480px) {
@@ -564,74 +607,6 @@
                 width: 100%;
             }
         }
-
-        /* Ajoutez ces styles pour les boutons de synchronisation */
-        .sync-section {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #eef5ff;
-            border-radius: 8px;
-        }
-        
-        .sync-btn {
-            padding: 8px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .sync-google {
-            background-color: #4285f4;
-            color: white;
-        }
-        
-        .sync-local {
-            background-color: #34a853;
-            color: white;
-        }
-        
-        .sync-status {
-            text-align: center;
-            margin-top: 5px;
-            font-size: 0.9rem;
-            color: #666;
-        }
-
-        
-        .auth-container {
-            text-align: center;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            margin: 20px;
-        }
-        
-        .auth-btn {
-            background-color: #4285f4;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .auth-status {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #666;
-        }
-        
     </style>
 </head>
 <body>
@@ -698,6 +673,21 @@
                 <button class="btn btn-primary" id="add-series">
                     <i class="fas fa-plus"></i> Ajouter une série
                 </button>
+            </div>
+
+            <!-- Section de sauvegarde/restauration -->
+            <div class="backup-section">
+                <h3>Sauvegarde des données</h3>
+                <div class="backup-buttons">
+                    <button class="backup-btn" id="export-data">
+                        <i class="fas fa-download"></i> Exporter les données
+                    </button>
+                    <button class="backup-btn" id="import-data">
+                        <i class="fas fa-upload"></i> Importer des données
+                    </button>
+                    <input type="file" id="import-file" accept=".json" style="display: none;">
+                </div>
+                <div class="backup-status" id="backup-status"></div>
             </div>
         </div>
     </div>
@@ -1156,7 +1146,7 @@
                                             renderCategories();
                                         }
                                     });
-                                    
+                                
                                     const counter2Value = document.createElement('span');
                                     counter2Value.className = 'counter-value';
                                     counter2Value.textContent = seriesItem.counter2Value;
@@ -1402,7 +1392,7 @@
                 });
             }
             
-            // Si aucune catégorie n'existe, ajouter un message
+            // Si aucune catégories n'existe, ajouter un message
             if (seriesCategorySelect.options.length === 0) {
                 const option = document.createElement('option');
                 option.value = '';
@@ -1412,6 +1402,45 @@
             } else {
                 seriesCategorySelect.disabled = false;
             }
+        }
+
+        // Fonction pour exporter les données
+        function exportData() {
+            const dataStr = JSON.stringify(appData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = 'series-tracker-data.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            
+            // Mettre à jour le statut
+            document.getElementById('backup-status').textContent = 'Données exportées avec succès!';
+        }
+
+        // Fonction pour importer des données
+        function importData(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    // Demander confirmation avant d'écraser les données
+                    if (confirm('Voulez-vous vraiment importer ces données? Cela écrasera vos données actuelles.')) {
+                        appData = importedData;
+                        saveData();
+                        renderCategories();
+                        document.getElementById('backup-status').textContent = 'Données importées avec succès!';
+                    }
+                } catch (error) {
+                    document.getElementById('backup-status').textContent = 'Erreur lors de l\'importation: ' + error.message;
+                }
+            };
+            
+            reader.readAsText(file);
         }
 
         // Gestion des modals
@@ -1731,12 +1760,32 @@
             sortSelect.addEventListener('change', renderCategories);
         }
 
+        // Configuration de la sauvegarde/restauration
+        function setupBackup() {
+            const exportBtn = document.getElementById('export-data');
+            const importBtn = document.getElementById('import-data');
+            const importInput = document.getElementById('import-file');
+            
+            exportBtn.addEventListener('click', exportData);
+            
+            importBtn.addEventListener('click', () => {
+                importInput.click();
+            });
+            
+            importInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    importData(e.target.files[0]);
+                }
+            });
+        }
+
         // Initialisation de l'application
         function initApp() {
             loadData();
             setupTabs();
             setupModals();
             setupFilters();
+            setupBackup();
             renderCategories();
             updateCategoryOptions();
         }
@@ -1744,207 +1793,5 @@
         // Démarrer l'application quand la page est chargée
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
-
-    <div class="sync-section">
-            <button class="sync-btn sync-google" id="sync-google">
-                <i class="fab fa-google-drive"></i> Synchroniser avec Google Drive
-            </button>
-            <button class="sync-btn sync-local" id="sync-local">
-                <i class="fas fa-download"></i> Charger depuis le stockage local
-            </button>
-        </div>
-        <div class="sync-status" id="sync-status"></div>
-    </div>
-
-    <script>
-        // Remplacez par votre propre Client ID
-        const CLIENT_ID = '701190629301-bho47q5g0tq2bm4mg9pho7886lrusicb.apps.googleusercontent.com';
-        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
-        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-        
-        let tokenClient;
-        let gapiInited = false;
-        let gisInited = false;
-        
-        // Initialiser gapi
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
-        
-        // Initialiser le client gapi
-        async function initializeGapiClient() {
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC],
-            });
-            gapiInited = true;
-            maybeEnableButtons();
-        }
-        
-        // Initialiser Google Identity Services
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '', // défini plus tard
-            });
-            gisInited = true;
-            maybeEnableButtons();
-        }
-        
-        function maybeEnableButtons() {
-            if (gapiInited && gisInited) {
-                document.getElementById('sync-google').style.visibility = 'visible';
-            }
-        }
-        
-        // Gérer l'authentification
-        async function handleAuthClick() {
-            const statusElement = document.getElementById('sync-status');
-            statusElement.textContent = 'Authentification en cours...';
-            
-            tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) {
-                    statusElement.textContent = 'Erreur d\'authentification: ' + resp.error;
-                    throw resp;
-                }
-                statusElement.textContent = 'Authentification réussie!';
-                await syncToGoogleDrive();
-            };
-            
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                tokenClient.requestAccessToken({prompt: ''});
-            }
-        }
-        
-        // Synchroniser vers Google Drive
-        async function syncToGoogleDrive() {
-            const statusElement = document.getElementById('sync-status');
-            statusElement.textContent = 'Synchronisation avec Google Drive...';
-            
-            try {
-                // Vérifier si le fichier existe déjà
-                let fileId = await findFile();
-                const data = JSON.stringify(appData);
-                
-                if (fileId) {
-                    // Mettre à jour le fichier existant
-                    await updateFile(fileId, data);
-                    statusElement.textContent = 'Données mises à jour sur Google Drive!';
-                } else {
-                    // Créer un nouveau fichier
-                    await createFile(data);
-                    statusElement.textContent = 'Données sauvegardées sur Google Drive!';
-                }
-                
-                // Sauvegarder aussi en local
-                saveData();
-            } catch (error) {
-                console.error('Erreur de synchronisation:', error);
-                statusElement.textContent = 'Erreur de synchronisation: ' + error.message;
-            }
-        }
-        
-        // Trouver le fichier sur Google Drive
-        async function findFile() {
-            const response = await gapi.client.drive.files.list({
-                q: "name='seriesTrackerData.json' and trashed=false",
-                fields: 'files(id, name)',
-                spaces: 'drive',
-            });
-            
-            if (response.result.files.length > 0) {
-                return response.result.files[0].id;
-            }
-            return null;
-        }
-        
-        // Créer un nouveau fichier
-        async function createFile(data) {
-            const fileMetadata = {
-                name: 'seriesTrackerData.json',
-                mimeType: 'application/json',
-            };
-            
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(fileMetadata)], {type: 'application/json'}));
-            form.append('file', new Blob([data], {type: 'application/json'}));
-            
-            const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                method: 'POST',
-                headers: new Headers({'Authorization': 'Bearer ' + gapi.client.getToken().access_token}),
-                body: form,
-            });
-            
-            return response.json();
-        }
-        
-        // Mettre à jour un fichier existant
-        async function updateFile(fileId, data) {
-            const form = new FormData();
-            form.append('file', new Blob([data], {type: 'application/json'}));
-            
-            const response = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
-                method: 'PATCH',
-                headers: new Headers({'Authorization': 'Bearer ' + gapi.client.getToken().access_token}),
-                body: form,
-            });
-            
-            return response.json();
-        }
-        
-        // Charger depuis Google Drive
-        async function loadFromGoogleDrive() {
-            const statusElement = document.getElementById('sync-status');
-            statusElement.textContent = 'Chargement depuis Google Drive...';
-            
-            try {
-                const fileId = await findFile();
-                
-                if (!fileId) {
-                    statusElement.textContent = 'Aucun fichier trouvé sur Google Drive';
-                    return;
-                }
-                
-                const response = await gapi.client.drive.files.get({
-                    fileId: fileId,
-                    alt: 'media'
-                });
-                
-                if (response.body) {
-                    appData = JSON.parse(response.body);
-                    saveData();
-                    renderCategories();
-                    statusElement.textContent = 'Données chargées depuis Google Drive!';
-                }
-            } catch (error) {
-                console.error('Erreur de chargement:', error);
-                statusElement.textContent = 'Erreur de chargement: ' + error.message;
-            }
-        }
-        
-        // Charger depuis le stockage local
-        function loadFromLocalStorage() {
-            const statusElement = document.getElementById('sync-status');
-            loadData();
-            renderCategories();
-            statusElement.textContent = 'Données chargées depuis le stockage local!';
-        }
-        
-        // Événements
-        document.getElementById('sync-google').addEventListener('click', handleAuthClick);
-        document.getElementById('sync-local').addEventListener('click', loadFromLocalStorage);
-        
-        // Initialiser les API Google
-        window.gapiLoaded = gapiLoaded;
-        window.gisLoaded = gisLoaded;
-    </script>
-    
-    <!-- Charger les API Google -->
-    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-
 </body>
 </html>
